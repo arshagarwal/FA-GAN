@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import torch.nn.utils.spectral_norm as SPN
+import math
 
 class Attention(nn.Module):
     """Attention module as per SA-GAN official implementation"""
@@ -53,6 +54,52 @@ class Attention(nn.Module):
 
         return res
 
+class ResBlk(nn.Module):
+    def __init__(self, dim_in, dim_out, actv=nn.LeakyReLU(0.2),
+                 normalize=False, downsample=False, upsample=False):
+        super().__init__()
+        self.actv = actv
+        self.normalize = normalize
+        self.downsample = downsample
+        self.upsample = upsample
+        self.learned_sc = dim_in != dim_out
+        self._build_weights(dim_in, dim_out)
+
+    def _build_weights(self, dim_in, dim_out):
+        self.conv1 = SPN(nn.Conv2d(dim_in, dim_in, 3, 1, 1))
+        self.conv2 = SPN(nn.Conv2d(dim_in, dim_out, 3, 1, 1))
+        if self.normalize:
+            self.norm1 = nn.InstanceNorm2d(dim_in, affine=True)
+            self.norm2 = nn.InstanceNorm2d(dim_in, affine=True)
+        if self.learned_sc:
+            self.conv1x1 = SPN(nn.Conv2d(dim_in, dim_out, 1, 1, 0, bias=False))
+
+    def _shortcut(self, x):
+        if self.learned_sc:
+            x = self.conv1x1(x)
+        if self.downsample:
+            x = F.avg_pool2d(x, 2)
+        return x
+
+    def _residual(self, x):
+        if self.normalize:
+            x = self.norm1(x)
+        x = self.actv(x)
+        x = self.conv1(x)
+        if self.downsample:
+            x = F.avg_pool2d(x, 2)
+        if self.upsample:
+            x = F.interpolate(x, scale_factor=2.0)
+        if self.normalize:
+            x = self.norm2(x)
+        x = self.actv(x)
+        x = self.conv2(x)
+        return x
+
+    def forward(self, x):
+        x = self._shortcut(x) + self._residual(x)
+        return x / math.sqrt(2)  # unit variance
+
 
 class ResidualBlock(nn.Module):
     """Residual Block with instance normalization."""
@@ -71,7 +118,7 @@ class ResidualBlock(nn.Module):
 
 class Generator(nn.Module):
     """Generator network."""
-    def __init__(self, conv_dim=64, c_dim=5, repeat_num=6):
+    def __init__(self, conv_dim=64, c_dim=5, repeat_num=4, img_size=256):
         super(Generator, self).__init__()
 
         layers = []
@@ -82,23 +129,32 @@ class Generator(nn.Module):
         # Down-sampling layers.
         curr_dim = conv_dim
         for i in range(2):
+            """
             layers.append(SPN(nn.Conv2d(curr_dim, curr_dim*2, kernel_size=4, stride=2, padding=1, bias=False)))
             layers.append(nn.InstanceNorm2d(curr_dim*2, affine=True, track_running_stats=True))
             layers.append(nn.ReLU(inplace=True))
+            """
+            layers.append(ResBlk(curr_dim, curr_dim*2, normalize=True, downsample=True))
             curr_dim = curr_dim * 2
 
         # Bottleneck layers.
         for i in range(repeat_num):
+            """
             layers.append(ResidualBlock(dim_in=curr_dim, dim_out=curr_dim))
-            if i==1:
+            """
+            layers.append(ResBlk(curr_dim, curr_dim))
+            if i == 1:
                 layers.append(Attention(curr_dim))
 
 
         # Up-sampling layers.
         for i in range(2):
+            """
             layers.append(SPN(nn.ConvTranspose2d(curr_dim, curr_dim//2, kernel_size=4, stride=2, padding=1, bias=False)))
             layers.append(nn.InstanceNorm2d(curr_dim//2, affine=True, track_running_stats=True))
             layers.append(nn.ReLU(inplace=True))
+            """
+            layers.append(ResBlk(curr_dim, curr_dim//2, normalize=True, upsample=True))
             curr_dim = curr_dim // 2
 
         layers.append(nn.Conv2d(curr_dim, 3, kernel_size=7, stride=1, padding=3, bias=False))
@@ -117,27 +173,40 @@ class Generator(nn.Module):
 
 class Discriminator(nn.Module):
     """ Multi-task Discriminator network with PatchGAN."""
-    def __init__(self, conv_dim=64, c_dim=5, repeat_num=6):
+    def __init__(self, conv_dim=64, c_dim=5, repeat_num=6, img_size=256):
         super(Discriminator, self).__init__()
         layers = []
         layers.append(SPN(nn.Conv2d(3, conv_dim, kernel_size=4, stride=2, padding=1)))
         layers.append(nn.LeakyReLU(0.01))
 
         curr_dim = conv_dim
+        repeat_num = int(np.log2(img_size)) - 2
         for i in range(1, repeat_num):
+            """
             layers.append(SPN(nn.Conv2d(curr_dim, curr_dim*2, kernel_size=4, stride=2, padding=1)))
             layers.append(nn.LeakyReLU(0.01))
+            """
+            layers.append(ResBlk(curr_dim, curr_dim*2, normalize=False, downsample=True))
             curr_dim = curr_dim * 2
             if i == 1:
                 layers.append(Attention(curr_dim))
 
         self.main = nn.Sequential(*layers)
+        self.final = nn.Sequential(nn.LeakyReLU(0.2),
+                                   nn.Conv2d(dim_out, dim_out, 4, 1, 0),
+                                   nn.LeakyReLU(0.2),
+                                   nn.Conv2d(dim_out, num_domains, 1, 1, 0)
+                                   )
+        """
         #self.conv1 = nn.Conv2d(curr_dim, 1, kernel_size=3, stride=1, padding=1, bias=False)
         self.conv2 = nn.Conv2d(curr_dim, c_dim, kernel_size=1, bias=False)
+        """
         
     def forward(self, x, y):
         h = self.main(x)
-        out = self.conv2(h)
+        assert x.shape[2:] == (4,4), "Discriminator Dowsnsampling Got {} Expected ".format(x.shape[2:], (4,4))
+        out = self.final(x)
+        assert out.shape[2:] == (1, 1), "Discriminator Dowsnsampling Got {} Expected ".format(out.shape[2:], (1, 1))
         #out = out.view(out.size(0), -1)  # (batch, num_domains)
         out = torch.reshape(out, (out.size(0), -1))
         idx = torch.LongTensor(range(y.size(0))).to(y.device)

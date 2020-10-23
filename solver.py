@@ -26,7 +26,6 @@ class Solver(object):
         self.d_repeat_num = config.d_repeat_num
         self.lambda_cls = config.lambda_cls
         self.lambda_rec = config.lambda_rec
-        self.lambda_gp = config.lambda_gp
 
         # Training configurations.
         self.num_iters = int(config.iters.split(',')[-1])
@@ -45,7 +44,6 @@ class Solver(object):
         self.test_iters = config.test_iters
 
         # Miscellaneous.
-        self.use_tensorboard = config.use_tensorboard
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # Directories.
@@ -97,8 +95,8 @@ class Solver(object):
     def build_model(self):
         """Create a generator and a discriminator."""
 
-        self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num)
-        self.D = Discriminator(self.d_conv_dim, self.c_dim, self.d_repeat_num)
+        self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num, self.img_size)
+        self.D = Discriminator(self.d_conv_dim, self.c_dim, self.d_repeat_num, self.img_size)
 
         self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
         self.d_optimizer = torch.optim.Adam(self.D.parameters(), self.d_lr, [self.beta1, self.beta2])
@@ -112,7 +110,6 @@ class Solver(object):
             self.G = torch.nn.DataParallel(self.G, device_ids=self.gpus)
             self.D = torch.nn.DataParallel(self.D, device_ids=self.gpus)
 
-            
         self.G.to(self.device)
         self.D.to(self.device)
 
