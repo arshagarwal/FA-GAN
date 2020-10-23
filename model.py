@@ -79,6 +79,8 @@ class ResBlk(nn.Module):
             x = self.conv1x1(x)
         if self.downsample:
             x = F.avg_pool2d(x, 2)
+        if self.upsample:
+            x = F.interpolate(x, scale_factor=2.0)
         return x
 
     def _residual(self, x):
@@ -193,9 +195,9 @@ class Discriminator(nn.Module):
 
         self.main = nn.Sequential(*layers)
         self.final = nn.Sequential(nn.LeakyReLU(0.2),
-                                   nn.Conv2d(dim_out, dim_out, 4, 1, 0),
+                                   nn.Conv2d(curr_dim, curr_dim, 4, 1, 0),
                                    nn.LeakyReLU(0.2),
-                                   nn.Conv2d(dim_out, num_domains, 1, 1, 0)
+                                   nn.Conv2d(curr_dim, c_dim, 1, 1, 0)
                                    )
         """
         #self.conv1 = nn.Conv2d(curr_dim, 1, kernel_size=3, stride=1, padding=1, bias=False)
@@ -203,7 +205,7 @@ class Discriminator(nn.Module):
         """
         
     def forward(self, x, y):
-        h = self.main(x)
+        x = self.main(x)
         assert x.shape[2:] == (4,4), "Discriminator Dowsnsampling Got {} Expected ".format(x.shape[2:], (4,4))
         out = self.final(x)
         assert out.shape[2:] == (1, 1), "Discriminator Dowsnsampling Got {} Expected ".format(out.shape[2:], (1, 1))
