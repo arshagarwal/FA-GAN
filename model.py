@@ -76,22 +76,28 @@ class ResBlk(nn.Module):
 
     def _shortcut(self, x):
         if self.learned_sc:
-            x = self.conv1x1(x)
-        if self.downsample:
-            x = F.avg_pool2d(x, 2)
-        if self.upsample:
-            x = F.interpolate(x, scale_factor=2.0)
+            #x = self.conv1x1(x)
+            if self.downsample:
+                x = self.conv1x1(x)
+                x = F.avg_pool2d(x, 2)
+            if self.upsample:
+                x = F.interpolate(x, scale_factor=2.0)
+                x = self.conv1x1(x)
         return x
 
     def _residual(self, x):
         if self.normalize:
             x = self.norm1(x)
         x = self.actv(x)
-        x = self.conv1(x)
+        #x = self.conv1(x)
         if self.downsample:
+            x = self.conv1(x)
             x = F.avg_pool2d(x, 2)
-        if self.upsample:
+        elif self.upsample:
             x = F.interpolate(x, scale_factor=2.0)
+            x = self.conv1(x)
+        else:
+            x = self.conv1(x)
         if self.normalize:
             x = self.norm2(x)
         x = self.actv(x)
@@ -178,12 +184,12 @@ class Discriminator(nn.Module):
     def __init__(self, conv_dim=64, c_dim=5, repeat_num=6, img_size=256):
         super(Discriminator, self).__init__()
         layers = []
-        layers.append(SPN(nn.Conv2d(3, conv_dim, kernel_size=4, stride=2, padding=1)))
+        layers.append(SPN(nn.Conv2d(3, conv_dim, kernel_size=3, stride=1, padding=1)))
         layers.append(nn.LeakyReLU(0.01))
 
         curr_dim = conv_dim
         repeat_num = int(np.log2(img_size)) - 2
-        for i in range(1, repeat_num):
+        for i in range(repeat_num):
             """
             layers.append(SPN(nn.Conv2d(curr_dim, curr_dim*2, kernel_size=4, stride=2, padding=1)))
             layers.append(nn.LeakyReLU(0.01))

@@ -95,8 +95,8 @@ class Solver(object):
     def build_model(self):
         """Create a generator and a discriminator."""
 
-        self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num, self.img_size)
-        self.D = Discriminator(self.d_conv_dim, self.c_dim, self.d_repeat_num, self.img_size)
+        self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num, self.img_size[-1])
+        self.D = Discriminator(self.d_conv_dim, self.c_dim, self.d_repeat_num, self.img_size[-1])
 
         self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
         self.d_optimizer = torch.optim.Adam(self.D.parameters(), self.d_lr, [self.beta1, self.beta2])
