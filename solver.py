@@ -44,6 +44,7 @@ class Solver(object):
         self.beta2 = config.beta2
         self.resume_iters = config.resume_iters
         self.selected_attrs = config.selected_attrs
+        self.gpus = config.gpus
 
         # Test configurations.
         self.test_iters = config.test_iters
@@ -77,6 +78,12 @@ class Solver(object):
         elif self.dataset in ['Both']:
             self.G = Generator(self.g_conv_dim, self.c_dim+self.c2_dim+2, self.g_repeat_num)   # 2 for mask vector.
             self.D = Discriminator(self.image_size, self.d_conv_dim, self.c_dim+self.c2_dim, self.d_repeat_num)
+
+        if self.gpus != "0" and torch.cuda.is_available():
+            self.gpus = self.gpus.split(',')
+            self.gpus = [int(i) for i in self.gpus]
+            self.G = torch.nn.DataParallel(self.G, device_ids=self.gpus)
+            self.D = torch.nn.DataParallel(self.D, device_ids=self.gpus)
 
         self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
         self.d_optimizer = torch.optim.Adam(self.D.parameters(), self.d_lr, [self.beta1, self.beta2])
