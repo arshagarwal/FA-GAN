@@ -164,9 +164,15 @@ class Generator(nn.Module):
             """
             layers.append(ResBlk(curr_dim, curr_dim//2, normalize=True, upsample=True))
             curr_dim = curr_dim // 2
-
+        """
         layers.append(nn.Conv2d(curr_dim, 3, kernel_size=7, stride=1, padding=3, bias=False))
         layers.append(nn.Tanh())
+        """
+
+        self.to_rgb = nn.Sequential(nn.InstanceNorm2d(curr_dim, affine=True),
+                                            nn.LeakyReLU(0.2),
+                                            nn.Conv2d(curr_dim, 3, 1, 1, 0))
+        layers.append(self.to_rgb)
         self.main = nn.Sequential(*layers)
 
     def forward(self, x, c):
