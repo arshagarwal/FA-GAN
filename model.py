@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
-import torch.nn.utils.spectral_norm as SPN
+#import torch.nn.utils.spectral_norm as SPN
 import math
 
 class Attention(nn.Module):
@@ -15,10 +15,10 @@ class Attention(nn.Module):
 
         self.maxPool=nn.MaxPool2d(kernel_size=2)
 
-        self.theta=SPN(nn.Conv2d(self.in_channels,self.in_channels//8,1,1,bias=False))
-        self.phi=SPN(nn.Conv2d(self.in_channels,self.in_channels//8,1,1,bias=False))
-        self.g=SPN(nn.Conv2d(self.in_channels,self.in_channels//2,1,1,bias=False))
-        self.final=SPN(nn.Conv2d(self.in_channels//2,self.in_channels,1,1,bias=False))
+        self.theta = nn.Conv2d(self.in_channels,self.in_channels//8,1,1,bias=False)
+        self.phi = nn.Conv2d(self.in_channels,self.in_channels//8,1,1,bias=False)
+        self.g = nn.Conv2d(self.in_channels,self.in_channels//2,1,1,bias=False)
+        self.final = nn.Conv2d(self.in_channels//2,self.in_channels,1,1,bias=False)
 
     def forward(self,x):
         (B,C,H,W)=x.shape
@@ -66,13 +66,13 @@ class ResBlk(nn.Module):
         self._build_weights(dim_in, dim_out)
 
     def _build_weights(self, dim_in, dim_out):
-        self.conv1 = SPN(nn.Conv2d(dim_in, dim_in, 3, 1, 1))
-        self.conv2 = SPN(nn.Conv2d(dim_in, dim_out, 3, 1, 1))
+        self.conv1 = nn.Conv2d(dim_in, dim_in, 3, 1, 1)
+        self.conv2 = nn.Conv2d(dim_in, dim_out, 3, 1, 1)
         if self.normalize:
             self.norm1 = nn.InstanceNorm2d(dim_in, affine=True)
             self.norm2 = nn.InstanceNorm2d(dim_in, affine=True)
         if self.learned_sc:
-            self.conv1x1 = SPN(nn.Conv2d(dim_in, dim_out, 1, 1, 0, bias=False))
+            self.conv1x1 = nn.Conv2d(dim_in, dim_out, 1, 1, 0, bias=False)
 
     def _shortcut(self, x):
         if self.learned_sc:
@@ -114,10 +114,10 @@ class ResidualBlock(nn.Module):
     def __init__(self, dim_in, dim_out):
         super(ResidualBlock, self).__init__()
         self.main = nn.Sequential(
-            SPN(nn.Conv2d(dim_in, dim_out, kernel_size=3, stride=1, padding=1, bias=False)),
+            nn.Conv2d(dim_in, dim_out, kernel_size=3, stride=1, padding=1, bias=False),
             nn.InstanceNorm2d(dim_out, affine=True, track_running_stats=True),
             nn.ReLU(inplace=True),
-            SPN(nn.Conv2d(dim_out, dim_out, kernel_size=3, stride=1, padding=1, bias=False)),
+            nn.Conv2d(dim_out, dim_out, kernel_size=3, stride=1, padding=1, bias=False),
             nn.InstanceNorm2d(dim_out, affine=True, track_running_stats=True))
 
     def forward(self, x):
@@ -130,9 +130,9 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         layers = []
-        layers.append(SPN(nn.Conv2d(3+c_dim, conv_dim, kernel_size=7, stride=1, padding=3, bias=False)))
+        layers.append(nn.Conv2d(3+c_dim, conv_dim, kernel_size=3, stride=1, padding=1, bias=False))
         layers.append(nn.InstanceNorm2d(conv_dim, affine=True, track_running_stats=True))
-        layers.append(nn.ReLU(inplace=True))
+        layers.append(nn.LeakyReLU(0.2))
 
         # Down-sampling layers.
         curr_dim = conv_dim
@@ -190,7 +190,7 @@ class Discriminator(nn.Module):
     def __init__(self, conv_dim=64, c_dim=5, repeat_num=6, img_size=256):
         super(Discriminator, self).__init__()
         layers = []
-        layers.append(SPN(nn.Conv2d(3, conv_dim, kernel_size=3, stride=1, padding=1)))
+        layers.append(nn.Conv2d(3, conv_dim, kernel_size=3, stride=1, padding=1))
         layers.append(nn.LeakyReLU(0.01))
 
         curr_dim = conv_dim
