@@ -98,8 +98,8 @@ class Solver(object):
         self.G = Generator(self.g_conv_dim, self.c_dim, self.g_repeat_num, self.img_size[-1])
         self.D = Discriminator(self.d_conv_dim, self.c_dim, self.d_repeat_num, self.img_size[-1])
 
-        self.g_optimizer = torch.optim.Adam(self.G.parameters(), self.g_lr, [self.beta1, self.beta2])
-        self.d_optimizer = torch.optim.Adam(self.D.parameters(), self.d_lr, [self.beta1, self.beta2])
+        self.g_optimizer = torch.optim.Adam(self.G.parameters(), 0.0001, [0.0, 0.999])
+        self.d_optimizer = torch.optim.Adam(self.D.parameters(), 0.0001, [0.0, 0.999])
 
         self.print_network(self.G, 'G')
         self.print_network(self.D, 'D')
