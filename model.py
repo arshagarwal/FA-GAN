@@ -150,7 +150,7 @@ class Generator(nn.Module):
             """
             layers.append(ResidualBlock(dim_in=curr_dim, dim_out=curr_dim))
             """
-            layers.append(ResBlk(curr_dim, curr_dim))
+            layers.append(ResBlk(curr_dim, curr_dim, normalize=True))
             if i == 1:
                 layers.append(Attention(curr_dim))
 
