@@ -135,8 +135,11 @@ class Generator(nn.Module):
         layers.append(nn.LeakyReLU(0.2))
 
         # Down-sampling layers.
+
         curr_dim = conv_dim
-        for i in range(2):
+        # no of down/up sample
+        n = int(np.log2(img_size)) - 4
+        for i in range(n):
             """
             layers.append(SPN(nn.Conv2d(curr_dim, curr_dim*2, kernel_size=4, stride=2, padding=1, bias=False)))
             layers.append(nn.InstanceNorm2d(curr_dim*2, affine=True, track_running_stats=True))
@@ -146,7 +149,7 @@ class Generator(nn.Module):
             curr_dim = curr_dim * 2
 
         # Bottleneck layers.
-        for i in range(repeat_num):
+        for i in range(2):
             """
             layers.append(ResidualBlock(dim_in=curr_dim, dim_out=curr_dim))
             """
@@ -156,7 +159,7 @@ class Generator(nn.Module):
 
 
         # Up-sampling layers.
-        for i in range(2):
+        for i in range(n):
             """
             layers.append(SPN(nn.ConvTranspose2d(curr_dim, curr_dim//2, kernel_size=4, stride=2, padding=1, bias=False)))
             layers.append(nn.InstanceNorm2d(curr_dim//2, affine=True, track_running_stats=True))
