@@ -156,6 +156,7 @@ class Generator(nn.Module):
             layers.append(ResBlk(curr_dim, curr_dim, normalize=True))
             if i == 1:
                 #layers.append(Attention(curr_dim))
+                pass
 
 
         # Up-sampling layers.
@@ -207,6 +208,7 @@ class Discriminator(nn.Module):
             curr_dim = curr_dim * 2
             if i == 1:
                 #layers.append(Attention(curr_dim))
+                pass
 
         self.main = nn.Sequential(*layers)
         self.final = nn.Sequential(nn.LeakyReLU(0.2),
