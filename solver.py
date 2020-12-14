@@ -9,6 +9,7 @@ import numpy as np
 import os
 import time
 import datetime
+from diff_aug import DiffAugment as DF
 
 
 class Solver(object):
@@ -242,12 +243,12 @@ class Solver(object):
             # =================================================================================== #
 
             # Compute loss with real images.
-            out_src = self.D(x_real, label_org)
+            out_src = self.D(DF(x_real), label_org)
             d_loss_real = torch.mean(torch.nn.ReLU(inplace=True)(1-out_src))
 
             # Compute loss with fake images.
             x_fake = self.G(x_real, c_trg)
-            out_src = self.D(x_fake.detach(), label_trg)
+            out_src = self.D(DF(x_fake.detach()), label_trg)
             d_loss_fake = torch.mean(torch.nn.ReLU(inplace=True)(1+out_src))
 
 
@@ -269,7 +270,7 @@ class Solver(object):
             if (i+1) % self.n_critic == 0:
                 # Original-to-target domain.
                 x_fake = self.G(x_real, c_trg)
-                out_src = self.D(x_fake, label_trg)
+                out_src = self.D(DF(x_fake), label_trg)
                 g_loss_fake = - torch.mean(out_src)
 
                 # Target-to-original domain.
