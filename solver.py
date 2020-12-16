@@ -334,28 +334,39 @@ class Solver(object):
     def test(self):
         """Translate images using StarGAN trained on a single dataset."""
         # Load the trained generator.
-        self.restore_model(self.test_iters)
+        self.restore_model(self.resume_iters)
         
-        # Set data loader.
-        if self.dataset == 'CelebA':
-            data_loader = self.celeba_loader
-        elif self.dataset == 'RaFD':
-            data_loader = self.rafd_loader
-        
+        loader = self.loader
+        loader = [iter(i) for i in loader]
+
+        # Translate fixed images for debugging.
         with torch.no_grad():
-            for i, (x_real, c_org) in enumerate(data_loader):
+            for k in range(len(loader)):
+                dir_path = self.result_dir + "/{}_resolution".format(self.img_size[k])
+                os.mkdir(dir_path)
+                # x_fake_list = []
+                try:
+                    x_test, _ = next(loader[k])
+                except:
+                    x_test = None
+                count = 0
+                while x_test != None:
+                    x_test = x_test.to(self.device)
+                    x_fake_list = []
+                    x_fake_list.append(x_test)
+                    for j in range(self.c_dim):
+                        label = torch.ones((x_test.size(0),), dtype=torch.long).to(self.device)
+                        label = label * j
+                        x_gen = x_test.clone()
+                        x_fake_list.append(self.G(x_gen, self.label2onehot(label, self.c_dim).to(self.device) ))  # remove iters
+                    try:
+                        x_test, _ = next(loader[k])
+                    except:
+                        x_test = None
+                    x_concat = torch.cat(x_fake_list, dim=3)
+                    sample_path = os.path.join(dir_path, '{}images.jpg'.format(count))
+                    count += 1
+                    save_image(self.denorm(x_concat.data.cpu()), sample_path, nrow=1, padding=0)
+                    print('Saved real and fake images into {}...'.format(sample_path))
 
-                # Prepare input images and target domain labels.
-                x_real = x_real.to(self.device)
-                c_trg_list = self.create_labels(c_org, self.c_dim, self.dataset, self.selected_attrs)
-
-                # Translate images.
-                x_fake_list = [x_real]
-                for c_trg in c_trg_list:
-                    x_fake_list.append(self.G(x_real, c_trg))
-
-                # Save the translated images.
-                x_concat = torch.cat(x_fake_list, dim=3)
-                result_path = os.path.join(self.result_dir, '{}-images.jpg'.format(i+1))
-                save_image(self.denorm(x_concat.data.cpu()), result_path, nrow=1, padding=0)
-                print('Saved real and fake images into {}...'.format(result_path))
+          
