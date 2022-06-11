@@ -1,3 +1,4 @@
+## Official Implementation of the paper titled [FA-GAN: High Resolution Face-Aging](https://ieeexplore.ieee.org/document/9514090)
 ## Steps to run using docker using Nvidia gpus:
 1. Install docker using [docker installation guide](https://docs.docker.com/engine/install/ubuntu/).
 2. Install nvidia-docker2 using [nvidia-docker2 installation guide](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html#docker).
